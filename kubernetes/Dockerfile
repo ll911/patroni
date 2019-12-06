@@ -25,7 +25,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     && chown -R postgres $PGHOME \
     && chmod -R 775 $PGHOME \
     && chmod 775 /usr/bin/entrypoint.sh \
-    && chmod 755 share/scripts/patroni/*.sh \
+    && chmod 755 /usr/share/scripts/patroni/*.sh \
     # Clean up
     && apt-get remove -y git python3-pip python3-wheel \
     && apt-get autoremove -y \
