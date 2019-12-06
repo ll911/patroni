@@ -1,6 +1,7 @@
 FROM postgres:11
 MAINTAINER Alexander Kukushkin <alexander.kukushkin@zalando.de>
 
+COPY contrib/root /
 RUN export DEBIAN_FRONTEND=noninteractive \
     && echo 'APT::Install-Recommends "0";\nAPT::Install-Suggests "0";' > /etc/apt/apt.conf.d/01norecommend \
     && apt-get update -y \
@@ -22,17 +23,18 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     && mkdir -p $PGHOME/pgdata/pgroot \
     && chgrp -R 0 $PGHOME \
     && chown -R postgres $PGHOME \
-    && chmod -R 775 $PGHOME \    
+    && chmod -R 775 $PGHOME \
+    && chmod 775 /usr/bin/entrypoint.sh \
+    && chmod 755 share/scripts/patroni/*.sh \
     # Clean up
     && apt-get remove -y git python3-pip python3-wheel \
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/* /root/.cache
 
-ADD entrypoint.sh /
 
 EXPOSE 5432 8008
 ENV LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 EDITOR=/usr/bin/editor
 USER postgres
 WORKDIR /home/postgres
-CMD ["/bin/bash", "/entrypoint.sh"]
+CMD ["/bin/bash", "/usr/bin/entrypoint.sh"]
