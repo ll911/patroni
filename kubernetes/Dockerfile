@@ -1,4 +1,4 @@
-FROM postgres:11
+FROM postgres:12
 MAINTAINER Alexander Kukushkin <alexander.kukushkin@zalando.de>
 
 COPY contrib/root /
