@@ -7,20 +7,11 @@ if [[ $UID -ge 10000 ]]; then
     rm /tmp/passwd
 fi
 
-# FIX -> FATAL:  data directory "..." has group or world access
-mkdir -p "$PATRONI_POSTGRESQL_DATA_DIR"
-chmod 700 "$PATRONI_POSTGRESQL_DATA_DIR"
-
 cat > /home/postgres/patroni.yml <<__EOF__
 bootstrap:
-  post_bootstrap: /usr/share/scripts/patroni/post_init.sh
   dcs:
     postgresql:
       use_pg_rewind: true
-      parameters:
-        max_connections: ${POSTGRESQL_MAX_CONNECTIONS:-100}
-        max_prepared_transactions: ${POSTGRESQL_MAX_PREPARED_TRANSACTIONS:-0}
-        max_locks_per_transaction: ${POSTGRESQL_MAX_LOCKS_PER_TRANSACTION:-64}
   initdb:
   - auth-host: md5
   - auth-local: trust
@@ -29,11 +20,11 @@ bootstrap:
   - data-checksums
   pg_hba:
   - host all all 0.0.0.0/0 md5
-  - host replication ${PATRONI_REPLICATION_USERNAME} ${POD_IP}/16    md5
+  - host replication ${PATRONI_REPLICATION_USERNAME} ${PATRONI_KUBERNETES_POD_IP}/16 md5
 restapi:
-  connect_address: '${POD_IP}:8008'
+  connect_address: '${PATRONI_KUBERNETES_POD_IP}:8008'
 postgresql:
-  connect_address: '${POD_IP}:5432'
+  connect_address: '${PATRONI_KUBERNETES_POD_IP}:5432'
   authentication:
     superuser:
       password: '${PATRONI_SUPERUSER_PASSWORD}'
