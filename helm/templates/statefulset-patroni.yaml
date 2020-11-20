@@ -1,0 +1,182 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ template "patroni.fullname" . }}
+  labels:
+    sts: {{ template "patroni.fullname" . }}
+    chart: {{ template "patroni.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    cluster-name: {{ .Values.clusterName | quote }}
+spec:
+  serviceName: {{ template "patroni.fullname" . }}
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      sts: {{ template "patroni.fullname" . }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      name: {{ template "patroni.fullname" . }}
+      labels:
+        sts: {{ template "patroni.fullname" . }}
+        cluster-name: {{ .Values.clusterName | quote }}
+        release: {{ .Release.Name }}
+    spec:
+      serviceAccountName: {{ template "patroni.serviceAccountName" . }}       
+      containers:
+      - name: {{ .Chart.Name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+        - name: PATRONI_LOG_LEVEL
+          value: INFO 
+        - name: TZ
+          value: PST    
+        - name: PATRONI_SUPERUSER_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "patroni.fullname" . }}
+              key: username-superuser                        
+        - name: PATRONI_SUPERUSER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "patroni.fullname" . }}
+              key: password-superuser
+        - name: APP_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "patroni.fullname" . }}
+              key: username-admin
+        - name: APP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "patroni.fullname" . }}
+              key: password-admin
+        - name: APP_DATABASE
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "patroni.fullname" . }}
+              key: default-dbname            
+        - name: PATRONI_REPLICATION_USERNAME
+          valueFrom:
+            secretKeyRef:
+              key: username-replication
+              name: {{ template "patroni.fullname" . }}              
+        - name: PATRONI_REPLICATION_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "patroni.fullname" . }}
+              key: password-replication
+        - name: PATRONI_SCOPE
+          value: {{ .Values.clusterName | quote }}
+        - name: PATRONI_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name          
+        {{- if .Values.kubernetes.enable }}                        
+        - name: PATRONI_KUBERNETES_LABELS
+          value: {{ (printf "{ \"sts\": \"%s\", \"cluster-name\": \"%s\", \"release\": \"%s\" }" (include "patroni.fullname" .) .Values.clusterName .Release.Name) | quote }}
+        - name: PATRONI_KUBERNETES_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: PATRONI_KUBERNETES_POD_IP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
+        {{- if .Values.kubernetes.ep.enable }}                                 
+        - name: PATRONI_KUBERNETES_USE_ENDPOINTS
+          value: "true" 
+        {{- end }}                                                                  
+        {{- end }}             
+        - name: PATRONI_POSTGRESQL_DATA_DIR
+          value: "{{ .Values.persistentVolume.mountPath }}/{{ .Values.persistentVolume.subPath }}/data"
+        - name: PATRONI_POSTGRESQL_PGPASS
+          value: /tmp/pgpass
+        - name: PATRONI_POSTGRESQL_LISTEN
+          value: 0.0.0.0:5432
+        - name: PATRONI_RESTAPI_LISTEN
+          value: 0.0.0.0:8008          
+        # - name: POD_NAMESPACE
+        #   valueFrom:
+        #     fieldRef:
+        #       apiVersion: v1
+        #       fieldPath: metadata.namespace
+        {{- if .Values.env }}
+        {{- range $key, $val := .Values.env }}
+        - name: {{  $key | quote | upper }}
+          value: {{ $val | quote }}
+        {{- end }}
+        {{- end }}
+        ports:
+        - containerPort: 8008
+        - containerPort: 5432
+        volumeMounts:
+        - name: {{ .Values.clusterName }}-storage-volume
+          mountPath: "{{ .Values.persistentVolume.mountPath }}"
+          subPath: "{{ .Values.persistentVolume.subPath }}"
+        resources:
+{{ toYaml .Values.resources | indent 10 }}
+        readinessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /readiness
+            port: 8008
+          initialDelaySeconds: 3
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+    {{- with .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- if .Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName }}
+    {{- end }}
+    {{- if .Values.affinity }}
+      affinity:
+{{ .Values.affinity | toYaml | indent 8 }}
+    {{- else if .Values.affinityTemplate }}
+      affinity:
+{{ tpl .Values.affinityTemplate . | indent 8 }}
+    {{- end }}
+      volumes:
+      {{- if not .Values.persistentVolume.enabled }}
+      - name: {{ .Values.clusterName }}-storage-volume
+        emptyDir: {}
+      {{- end }}
+  {{- if .Values.persistentVolume.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: {{ .Values.clusterName }}-storage-volume
+        annotations:
+        {{- if .Values.persistentVolume.annotations }}
+{{ toYaml .Values.persistentVolume.annotations | indent 8 }}
+        {{- end }}
+        labels:
+          sts: {{ template "patroni.fullname" . }}
+          release: {{ .Release.Name }}
+          heritage: {{ .Release.Service }}
+      spec:
+        accessModes:
+{{ toYaml .Values.persistentVolume.accessModes | indent 8 }}
+        resources:
+          requests:
+            storage: "{{ .Values.persistentVolume.size }}"
+      {{- if .Values.persistentVolume.storageClass }}
+      {{- if (eq "-" .Values.persistentVolume.storageClass) }}
+        storageClassName: ""
+      {{- else }}
+        storageClassName: "{{ .Values.persistentVolume.storageClass }}"
+      {{- end }}
+      {{- end }}
+  {{- end }}
