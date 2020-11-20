@@ -1,8 +1,9 @@
 replicaCount: 3
 image:
   # Image was built from
-  # https://github.com/BCDevOps/platform-services/tree/master/apps/pgsql/patroni
-  repository: image-registry.openshift-image-registry.svc:5000/bcgov/patroni
+  # https://hub.docker.com/repository/docker/llrealm/patroni
+  #repository: image-registry.openshift-image-registry.svc:5000/bcgov/patroni
+  repository: llrealm/patroni
   tag: latest
   pullPolicy: Always
 
