@@ -1,0 +1,14 @@
+apiVersion: security.devops.gov.bc.ca/v1alpha1
+kind: NetworkSecurityPolicy
+metadata:
+  name: all-internal
+  labels:
+    app: pg-db
+spec:
+  description: |
+    allow patroni pods to talk to one another for replication
+    etc.
+  source:
+    - - $namespace=ffcb5f-tools
+  destination:
+    - - $namespace=ffcb5f-tools
