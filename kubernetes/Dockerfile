@@ -1,4 +1,4 @@
-FROM postgres:12
+FROM postgres:12.5
 MAINTAINER Alexander Kukushkin <alexander.kukushkin@zalando.de>
 
 COPY contrib/root /
@@ -31,7 +31,6 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/* /root/.cache
-
 
 EXPOSE 5432 8008
 ENV LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 EDITOR=/usr/bin/editor
