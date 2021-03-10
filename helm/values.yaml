@@ -3,7 +3,7 @@ image:
   # Image was built from
   # https://hub.docker.com/repository/docker/llrealm/patroni
   #repository: image-registry.openshift-image-registry.svc:5000/bcgov/patroni
-  repository: llrealm/patroni
+  repository: quay.io/llrealm/patroni-k8s
   tag: latest
   pullPolicy: Always
 
